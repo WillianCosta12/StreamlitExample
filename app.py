@@ -8,7 +8,6 @@ Original file is located at
 """
 
 !pip install -q streamlit pyvis networkx pandas
-!npm install -g localtunnel
 
 import streamlit as st
 import pandas as pd
@@ -36,6 +35,3 @@ if uploaded:
 
     HtmlFile = open("grafo.html", 'r', encoding='utf-8')
     components.html(HtmlFile.read(), height=650, scrolling=True)
-
-!streamlit run app.py --server.port=8501 --server.address=0.0.0.0 &>/content/logs.txt &
-!lt --port 8501  # ou `cloudflared tunnel --url http://localhost:8501`
