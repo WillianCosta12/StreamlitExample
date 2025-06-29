@@ -1,56 +1,104 @@
+%%writefile app.py
 import streamlit as st
 import pandas as pd
 import networkx as nx
 from pyvis.network import Network
 import streamlit.components.v1 as components
+import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Análise de Subgrafo", layout="wide")
-st.title("🔎 Rede com Subgrafo dos Top‑N Nós por Grau")
+st.set_page_config(page_title="Análise de Redes Avançada", layout="wide")
+st.title("📊 Análise Estrutural e de Centralidade da Rede")
 
-# Carrega CSV da raiz do repo
 @st.cache_data
 def load_data():
     return pd.read_csv("grafo.csv")
 
 try:
     df = load_data()
-    st.success("✅ CSV carregado!")
     cols = df.columns.tolist()
-    st.write("Colunas disponíveis:", cols)
-
-    # Détecta colunas padrão
-    col_origem = 'Source' if 'Source' in cols else st.selectbox("Origem", cols)
-    col_destino = 'Target' if 'Target' in cols else st.selectbox("Destino", cols)
-
-    # Monta grafo base (direcionado se houver Type Directed)
+    src = 'Source' if 'Source' in cols else st.sidebar.selectbox("Origem", cols)
+    tgt = 'Target' if 'Target' in cols else st.sidebar.selectbox("Destino", cols)
     directed = 'Directed' in df.get('Type', [])
-    G = nx.from_pandas_edgelist(df, col_origem, col_destino,
+    G = nx.from_pandas_edgelist(df, src, tgt,
                                 edge_attr=True,
                                 create_using=nx.DiGraph() if directed else nx.Graph())
 
-    # Parâmetros para subgrafo
-    top_n = st.sidebar.slider("Número de nós mais conectados (Top N)", 5, min(len(G), 200), value=50)
+    
+    subtype = st.sidebar.selectbox("Subgrafo", [
+        "Rede completa",
+        "Maior componente conectado (weak)",
+        "Maior componente fortemente conectado",
+    ])
+    if subtype == "Maior componente conectado (weak)":
+        comp = max(nx.weakly_connected_components(G) if directed else nx.connected_components(G), key=len)
+        G = G.subgraph(comp).copy()
+    elif subtype == "Maior componente fortemente conectado":
+        comp = max(nx.strongly_connected_components(G), key=len)
+        G = G.subgraph(comp).copy()
 
-    # Seleciona nós com maior grau
-    degree_sorted = sorted(G.degree(), key=lambda x: x[1], reverse=True)
-    top_nodes = [n for n, _ in degree_sorted[:top_n]]
-    G_sub = G.subgraph(top_nodes).copy()  # Subgrafo próprio com cópia de atributos :contentReference[oaicite:1]{index=1}
+   
+    n = G.number_of_nodes()
+    e = G.number_of_edges()
+    density = nx.density(G)
+    assort = nx.degree_assortativity_coefficient(G)
+    clustering = nx.transitivity(G)
+    scc = nx.number_strongly_connected_components(G) if directed else None
+    wcc = nx.number_weakly_connected_components(G) if directed else nx.number_connected_components(G)
+    st.subheader("📌 Métricas Estruturais")
+    st.markdown(f"""
+    - **Densidade** (esparsidade): {density:.4f}  
+    - **Assortatividade** (correlação de grau): {assort:.4f}  
+    - **Clustering global**: {clustering:.4f}  
+    - **Componentes fortemente conectados**: {scc if directed else 'N/A'}  
+    - **Componentes fracamente conectados**: {wcc}
+    """)
 
-    st.write(f"🎯 Subgrafo com os Top {top_n} nós por grau:")
-    st.write(f"Nós: {G_sub.number_of_nodes()}, Arestas: {G_sub.number_of_edges()}")
+   
+    st.subheader("📈 Distribuição de Grau")
+    if directed:
+        indeg = [d for _, d in G.in_degree()]
+        outdeg = [d for _, d in G.out_degree()]
+        fig, ax = plt.subplots(1,2, figsize=(10,4))
+        ax[0].hist(indeg, bins=20, color='skyblue')
+        ax[0].set_title("In-Degree")
+        ax[1].hist(outdeg, bins=20, color='salmon')
+        ax[1].set_title("Out-Degree")
+        st.pyplot(fig)
+    else:
+        deg = [d for _, d in G.degree()]
+        st.bar_chart(pd.Series(deg).value_counts().sort_index())
 
-    # Métricas do subgrafo
-    st.write(f"Grau médio: {sum(dict(G_sub.degree()).values())/G_sub.number_of_nodes():.2f}")
-    st.write(f"Coeficiente de agrupamento: {nx.average_clustering(G_sub):.2f}")
+   
+    st.subheader("⭐ Centralidade dos Nós")
+    deg = nx.degree_centrality(G)
+    eig = nx.eigenvector_centrality_numpy(G)
+    clo = nx.closeness_centrality(G)
+    bet = nx.betweenness_centrality(G)
+    centralities = {'Degree': deg, 'Eigenvector': eig, 'Closeness': clo, 'Betweenness': bet}
 
-    # Visualização com Pyvis
-    net = Network(height="600px", width="100%", notebook=True, directed=directed)
-    net.from_nx(G_sub)
-    net.show_buttons(filter_=['physics', 'nodes', 'edges'])
-    net.save_graph("subgrafo.html")
-    components.html(open("subgrafo.html", 'r', encoding='utf-8').read(), height=650)
+    metric = st.selectbox("Selecione uma métrica", list(centralities.keys()))
+    topk = st.slider("Top K nós", 3, min(50, n), 10)
+    tops = sorted(centralities[metric].items(), key=lambda x: x[1], reverse=True)[:topk]
+    st.write(f"Top {topk} por **{metric} centrality**")
+    st.table(pd.DataFrame(tops, columns=['Node','Score']))
+
+  
+    if st.checkbox("Mostrar tamanho dos nós de acordo com centralidade"):
+        vals = centralities[metric]
+        net = Network(height="600px", width="100%", notebook=True, directed=directed)
+        for node in G.nodes():
+            net.add_node(node, size=5 + 45 * vals[node])
+        for u, v in G.edges():
+            net.add_edge(u, v)
+        net.show_buttons(filter_=['physics'])
+        net.save_graph("central_graph.html")
+        components.html(open("central_graph.html",'r').read(), height=650)
+    else:
+        net = Network(height="600px", width="100%", notebook=True, directed=directed)
+        net.from_nx(G)
+        net.show_buttons(filter_=['physics'])
+        net.save_graph("graph.html")
+        components.html(open("graph.html",'r').read(), height=650)
 
 except FileNotFoundError:
     st.error("❌ 'grafo.csv' não encontrado.")
-except Exception as e:
-    st.error(f"❌ Ocorreu um erro: {e}")
