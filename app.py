@@ -35,7 +35,7 @@ try:
             comp = max(nx.weakly_connected_components(G), key=len)
         else:
             comp = max(nx.connected_components(G), key=len)
-    G_sub = G.subgraph(comp).copy()
+        G_sub = G.subgraph(comp).copy()
     elif subtype == "Maior componente fortemente conectado":
         if directed:
             comp = max(nx.strongly_connected_components(G), key=len)
