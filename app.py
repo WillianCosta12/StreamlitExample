@@ -28,19 +28,23 @@ try:
         "Maior componente conectado (weak)",
         "Maior componente fortemente conectado",
     ])
-    if subtype == "Maior componente conectado (weak)":
+    if subtype == "Rede completa":
+        G_sub = G.copy()
+    elif subtype == "Maior componente conectado (weak)":
         if directed:
             comp = max(nx.weakly_connected_components(G), key=len)
         else:
             comp = max(nx.connected_components(G), key=len)
-    G = G.subgraph(comp).copy()
-
+    G_sub = G.subgraph(comp).copy()
     elif subtype == "Maior componente fortemente conectado":
         if directed:
             comp = max(nx.strongly_connected_components(G), key=len)
-            G = G.subgraph(comp).copy()
+            G_sub = G.subgraph(comp).copy()
         else:
-            st.warning("🛑 Esta métrica só se aplica a grafos **direcionados**; mostrando a rede completa.")
+            st.warning("❗ Essa opção se aplica apenas a grafos direcionados. Exibindo rede completa.")
+            G_sub = G.copy()
+    else:
+        G_sub = G.copy()
 
 
    
