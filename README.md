@@ -9,4 +9,4 @@ Para isso, apenas substitua o arquivo "grafo.csv" pelo dataset a sua escolha, al
 Faça login no Streamlit utilizando a conta do github para pode vincular o projeto em questão
 
 ### Link para visualização no Streamlit
-https://appexample-m4xmb2gxbem5zwdjcv8weu.streamlit.app
+https://appexample-92d2pkxrrog3zmxrryq8nj.streamlit.app
