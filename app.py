@@ -70,7 +70,7 @@ try:
    
     st.subheader("⭐ Centralidade dos Nós")
     deg = nx.degree_centrality(G)
-    eig = nx.eigenvector_centrality_numpy(G)
+    eig = nx.eigenvector_centrality(G)
     clo = nx.closeness_centrality(G)
     bet = nx.betweenness_centrality(G)
     centralities = {'Degree': deg, 'Eigenvector': eig, 'Closeness': clo, 'Betweenness': bet}
